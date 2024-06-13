@@ -76,7 +76,7 @@ class IntraDistance:
         self.progress_bar = progress_bar
 
         validate_metrics(self.m_dict)
-
+        
     def _intradistance(self, x, algorithm, metric, weights):
         # store the first hash and reshape into 2d array as required by cdist func.
         xa = x[algorithm].iloc[0].reshape(1, -1)
@@ -101,37 +101,39 @@ class IntraDistance:
 
         for a in tqdm(self.le['a'].classes_, disable=not self.progress_bar, desc="Hash"):
             for m in self.le['m'].classes_:
+                # Check if metric is specified in the metric dictionary.
+                if m in self.m_dict:
                 
-                if self.bit_weights:
-                    w = self.bit_weights[f"{a}_{m}"]
-                else: w=None
-                
-                # Compute the distances for each filename
-                grp_dists = data.groupby(["filename"]).apply(
-                    self._intradistance, 
-                    algorithm=a, 
-                    metric=m,
-                    weights=w
-                )
+                    if self.bit_weights:
+                        w = self.bit_weights[f"{a}_{m}"]
+                    else: w=None
+                    
+                    # Compute the distances for each filename
+                    grp_dists = data.groupby(["filename"]).apply(
+                        self._intradistance, 
+                        algorithm=a, 
+                        metric=m,
+                        weights=w
+                    )
 
-                # Stack each distance into rows
-                grp_dists = np.row_stack(grp_dists)
+                    # Stack each distance into rows
+                    grp_dists = np.row_stack(grp_dists)
 
-                # Get the integer labels for algo and metric
-                a_label = self.le['a'].transform(a.ravel())[0]
-                m_label = self.le['m'].transform(m.ravel())
+                    # Get the integer labels for algo and metric
+                    a_label = self.le['a'].transform(a.ravel())[0]
+                    m_label = self.le['m'].transform(m.ravel())
 
-                grp_dists = np.column_stack(
-                    [
-                        self.files_,  # fileA
-                        self.files_,  # fileB (same in intra!)
-                        np.repeat(a_label, self.n_files_),
-                        np.repeat(m_label, self.n_files_),
-                        np.repeat(self.set_class, self.n_files_),
-                        grp_dists,
-                    ]
-                )
-                distances.append(grp_dists)
+                    grp_dists = np.column_stack(
+                        [
+                            self.files_,  # fileA
+                            self.files_,  # fileB (same in intra!)
+                            np.repeat(a_label, self.n_files_),
+                            np.repeat(m_label, self.n_files_),
+                            np.repeat(self.set_class, self.n_files_),
+                            grp_dists,
+                        ]
+                    )
+                    distances.append(grp_dists)
 
         distances = np.concatenate(distances)
 
@@ -220,39 +222,41 @@ class InterDistance:
         # Do the math using Pandas groupby
         for a in tqdm(self.le['a'].classes_, disable=not self.progress_bar, desc="Hash"):
             for m in self.le['m'].classes_:
+                # Check if metric is specified in the metric dictionary.
+                if m in self.m_dict:
 
-                if self.bit_weights:
-                    w = self.bit_weights[f"{a}_{m}"]
-                else: w=None
-                
-                # Compute distances for each group of transformations
-                grp_dists = subset.groupby(["transformation"]).apply(
-                    self._interdistance,  # type:ignore
-                    algorithm=a,
-                    metric=m,
-                    weights=w
-                )
+                    if self.bit_weights:
+                        w = self.bit_weights[f"{a}_{m}"]
+                    else: w=None
+                    
+                    # Compute distances for each group of transformations
+                    grp_dists = subset.groupby(["transformation"]).apply(
+                        self._interdistance,  # type:ignore
+                        algorithm=a,
+                        metric=m,
+                        weights=w
+                    )
 
-                # Transpose to create rows of observations
-                X_dists = np.transpose(np.row_stack(grp_dists.values))
+                    # Transpose to create rows of observations
+                    X_dists = np.transpose(np.row_stack(grp_dists.values))
 
-                # Get the integer labels for algo and metric
-                a_label = self.le['a'].transform(a.ravel())[0]
-                m_label = self.le['m'].transform(m.ravel())
+                    # Get the integer labels for algo and metric
+                    a_label = self.le['a'].transform(a.ravel())[0]
+                    m_label = self.le['m'].transform(m.ravel())
 
-                # Add columns with pairs of the compared observations
-                X_dists = np.column_stack(
-                    [
-                        self.pairs_,
-                        np.repeat(a_label, self.n_pairs_),
-                        np.repeat(m_label, self.n_pairs_),
-                        np.repeat(self.set_class, self.n_pairs_),
-                        X_dists,
-                    ]
-                )
+                    # Add columns with pairs of the compared observations
+                    X_dists = np.column_stack(
+                        [
+                            self.pairs_,
+                            np.repeat(a_label, self.n_pairs_),
+                            np.repeat(m_label, self.n_pairs_),
+                            np.repeat(self.set_class, self.n_pairs_),
+                            X_dists,
+                        ]
+                    )
 
-                # Add the results to the distances array
-                distances.append(X_dists)
+                    # Add the results to the distances array
+                    distances.append(X_dists)
 
         # Flatten the distances array
         distances = np.concatenate(distances)

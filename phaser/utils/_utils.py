@@ -1,6 +1,8 @@
 import os
 from PIL import Image
 import numpy as np
+import pandas as pd
+from math import ceil
 from joblib import dump, load
 
 class ImageLoader():
@@ -33,9 +35,43 @@ def bin2bool(hash):
 
     return bool_array
 
-def dump_labelencoders(encoders:dict, path:str) -> None:
+def dump_labelencoders(encoders:dict, path:str, filename:str="LabelEncoders.bz2") -> None:
     #for name, enc in encoders.items():
-    dump(encoders,f"{path}LabelEncoders.bz2", compress=9)
+    dump(encoders, os.path.join(path, filename), compress=9)
 
-def load_labelencoders(filename:str, path:str):
-    return load(f"./{path}{filename}.bz2")
+def load_labelencoders(path:str, filename:str="LabelEncoders.bz2"):
+    return load(os.path.join(path, filename))
+
+
+def create_file_batches(filelist:list[str], batch_size:int=100_000) -> list[list]:
+    """Split a list of files in to batches which can be processed separately. Useful for large datasets which would cause memory issues.
+
+    Args:
+        filelist (list[str]): The list of files to split up.
+        batch_size (int, optional): The size of the batches to create. Defaults to 100_000.
+
+    Returns:
+        list[list]: A list, where each element is a list[str] of files to process.
+    """
+    if batch_size >= len(filelist):
+        return [filelist]
+    n = ceil(len(filelist) / batch_size)
+    return np.array_split(filelist, n)
+
+
+def format_temp_name(batch_num:int) -> str:
+    return f"temp_hashes_{batch_num}.csv.bz2"
+
+
+def combine_temp_hash_dataframes(output_directory:str, num_batches:int) -> pd.DataFrame: 
+    return_df = pd.DataFrame()
+
+    # Loop through all temp CSV files and append them to the return DF.
+    for bat in range(0, num_batches):
+        csv_path = os.path.join(output_directory, format_temp_name(bat))
+        df_h = pd.read_csv(csv_path)
+        return_df = pd.concat([return_df, df_h])
+        # delete temp CSV
+        os.remove(csv_path)
+
+    return return_df

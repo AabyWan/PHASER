@@ -1,4 +1,4 @@
-from paper00_conf import *
+from demo00_conf import *
 from phaser.hashing import ComputeHashes
 
 # Find all the images and compute hashes

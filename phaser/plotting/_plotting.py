@@ -9,7 +9,7 @@ from sklearn.metrics import ConfusionMatrixDisplay
 
 
 
-def hist_fig(data, label_encoding, transform, figsize=(5,5), interactive=False):
+def hist_fig(data, label_encoding, transform, figsize=(5,5), interactive=False, bins=25):
     _m = label_encoding['m'].classes_
     _a = label_encoding['a'].classes_
     n_cols = len(_m)
@@ -17,7 +17,7 @@ def hist_fig(data, label_encoding, transform, figsize=(5,5), interactive=False):
 
     #                                                   (width, height)
     fig, axes = plt.subplots(ncols=n_cols, nrows=n_rows, figsize=figsize, 
-                            sharex=True, sharey=True, constrained_layout=True)
+                            sharex=True, sharey=True, constrained_layout=True, squeeze=False)
     
     for col_i, metric in enumerate(_m):
         for row_i, algo in enumerate(_a):
@@ -32,9 +32,9 @@ def hist_fig(data, label_encoding, transform, figsize=(5,5), interactive=False):
                 _X, 
                 kde=True, 
                 stat='proportion', 
-                bins=25, #type:ignore 
+                bins=bins, #type:ignore 
                 ax=axes[row_i,col_i])
-            axes[row_i,col_i].set(title=f"{algo.capitalize()} - {metric.capitalize()}", xlim=(-0.01,1))
+            axes[row_i,col_i].set(title=f"{algo.capitalize()} - {metric.capitalize()}", xlim=(-0.01,1), xlabel='Similarity')
     
     # Close the figure for memory management and to avoid it showing on return
     _ = plt.suptitle(f"Transformation = {transform.capitalize()}")
@@ -57,7 +57,7 @@ def bit_weights_ax(bits, title="", ax=None):
     return ax
 
 
-def kde_ax(data, transform, label_encoding, annotate=True, fill=False, threshold=None, title='', ax=None):
+def kde_ax(data, transform, label_encoding, annotate=True, fill=False, threshold=None, title='', ax=None, palette="tab10"):
 
     # Create an axis if none is provided
     if ax == None : ax = plt.gca()
@@ -70,7 +70,7 @@ def kde_ax(data, transform, label_encoding, annotate=True, fill=False, threshold
 
 
     # Plot 2d-lines using normalised KDE density.
-    _=sns.kdeplot(_data, x=transform, hue='class',ax=ax)
+    _=sns.kdeplot(_data, x=transform, hue='class',ax=ax, palette=palette)
 
     # Add TP and TN labels.
     if annotate:
@@ -91,7 +91,7 @@ def kde_ax(data, transform, label_encoding, annotate=True, fill=False, threshold
             _=ax.text(max_x, max_y+0.02, f'{label}', horizontalalignment='center') 
             
             # Increase max y-axis according to annotation    
-            ax_max_y = max_y+0.25 if max_y > ax_max_y else ax_max_y
+            ax_max_y = max_y+1 if max_y > ax_max_y else ax_max_y
         _=ax.set(ylim=(0,ax_max_y))
         
         if fill:
@@ -115,7 +115,7 @@ def kde_ax(data, transform, label_encoding, annotate=True, fill=False, threshold
         else:
             ax.legend(labels=label_encoding['c'].classes_, loc="upper left", title='Class')
 
-        ax.set(title=title, xticks=np.arange(0.0, 1.01, 0.1), xlim=(0,1), xlabel='Similarity')
+        ax.set(title=title, xticks=np.arange(0.0, 1.01, 0.2), xlim=(0,1), xlabel='Similarity')
 
     return ax
 
@@ -134,7 +134,7 @@ def cm_ax(cm, class_labels=None, values_format='.0f', ax=None):
     
     return ax
 
-def eer_ax(fpr, tpr, thresholds, plot_circles=True, threshold=None, legend='', ax=None):
+def eer_ax(fpr, tpr, thresholds, plot_circles=True, threshold=None, legend='', ax=None, title=""):
     # Create an axis if none is provided
     if ax == None : ax = plt.gca()
 
@@ -142,7 +142,7 @@ def eer_ax(fpr, tpr, thresholds, plot_circles=True, threshold=None, legend='', a
     # False Negative Rate (fnr) == False Rejection Rate (FRR)
     frr = 1-tpr 
     fpr_ax = ax.plot(thresholds, fpr, label=f'FPR {legend}')
-    frr_ax = ax.plot(thresholds, frr, label=f'FRR {legend}')
+    frr_ax = ax.plot(thresholds, frr, label=f'FNR {legend}')
     
     if plot_circles:
         ax.plot(thresholds, fpr, '.', mfc='none', color=fpr_ax[0].get_color())
@@ -155,9 +155,8 @@ def eer_ax(fpr, tpr, thresholds, plot_circles=True, threshold=None, legend='', a
         xlabel="Similarity",
         ylabel="Rate",
         xticks=(np.arange(0.0, 1.1, 0.1)),
-        #xlim=(0,1.01),
         yticks=(np.arange(0.0, 1.1, 0.1)),
-        #ylim=(0,1.01)
+        title=title,
         )
     
     for tick in ax.get_xticklabels():
@@ -169,7 +168,7 @@ def eer_ax(fpr, tpr, thresholds, plot_circles=True, threshold=None, legend='', a
 
     return ax
 
-def roc_ax(fpr, tpr, roc_auc, legend="", ax=None):
+def roc_ax(fpr, tpr, roc_auc, title="", legend="", ax=None):
     # Create an axis if none is provided
     if ax == None : ax = plt.gca()
     
@@ -187,7 +186,8 @@ def roc_ax(fpr, tpr, roc_auc, legend="", ax=None):
         yticks=(np.arange(0,1.1,0.1)),
         ylim=(0,1),
         xlabel="False Positive Rate", 
-        ylabel="True Positive Rate")
+        ylabel="True Positive Rate",
+        title=title)
 
     ax.legend(loc='lower right')
     return ax

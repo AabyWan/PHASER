@@ -127,7 +127,7 @@ class MetricMaker:
         threshold : float
             The decision threshold used to make predictions
         normalize : str, optional
-            Normalize the confusion matrix, by default "true"
+            normalize the confusion matrix, by default "true"
             Options: 'true', 'none'
         breakdown : bool, optional
             Instead returns [tn, fp, fn, tp], by default False
@@ -384,9 +384,14 @@ class ComputeMetrics:
         self.backend = backend
         self.progress_bar = progress_bar
 
-    def _process_triplet(self, triplet, norm, weighted):
+    def _process_triplet(self, triplet, normalize, weighted):
         # string values for algo, transf, metric
         a_s, t_s, m_s = triplet
+
+        if normalize:
+            normalize = "true"
+        else:
+            normalize = None
 
         # from string to integer label encoding
         a_l = self.le["a"].transform(np.array(a_s).ravel())[0]
@@ -401,7 +406,7 @@ class ComputeMetrics:
 
         # use the metric maker to
         mm = MetricMaker(y_true, y_sims, weighted=weighted)
-        cm = mm.get_cm(mm.eer_thresh, norm, True)
+        cm = mm.get_cm(mm.eer_thresh, normalize, True)
 
         m = [a_s, t_s, m_s, mm.auc, mm.eer_score, mm.eer_thresh, *cm]
 
@@ -415,7 +420,7 @@ class ComputeMetrics:
         else:
             return m, None
 
-    def fit(self, triplets, norm="true", weighted=True):
+    def fit(self, triplets, normalize="true", weighted=True):
         """
         Fit object on a list of triplets using JobLib
 
@@ -434,7 +439,7 @@ class ComputeMetrics:
         # Use zip() to return tuple (m, b) from process_triplet
         _m, _b = zip(
             *Parallel(n_jobs=self.n_jobs, backend=self.backend)(
-                delayed(self._process_triplet)(t, norm, weighted)
+                delayed(self._process_triplet)(t, normalize, weighted)
                 # TODO: fix the progress bar :/
                 for t in tqdm(triplets, desc="Triplet", disable=not self.progress_bar)
             )

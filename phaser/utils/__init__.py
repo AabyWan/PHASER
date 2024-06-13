@@ -7,7 +7,10 @@ from ._utils import (
     bool2binstring,
     bin2bool,
     dump_labelencoders,
-    load_labelencoders
+    load_labelencoders,
+    create_file_batches,
+    format_temp_name,
+    combine_temp_hash_dataframes
 )
 
 __all__ = [
@@ -15,5 +18,8 @@ __all__ = [
     "bool2binstring",
     "bin2bool",
     "dump_labelencoders",
-    "load_labelencoders"
+    "load_labelencoders",
+    "create_file_batches",
+    "format_temp_name",
+    "combine_temp_hash_dataframes"
 ]

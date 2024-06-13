@@ -1,5 +1,6 @@
-from paper00_conf import *
+from demo00_conf import *
 import matplotlib.pyplot as plt
+
 plt.switch_backend("agg")
 
 from phaser.evaluation import dist_stats, MetricMaker
@@ -8,7 +9,7 @@ from phaser.plotting import kde_ax, cm_ax, hist_fig, eer_ax, roc_ax
 print("Running script.")
 
 # Load the label encoders
-le   = load("./demo_outputs/LabelEncoders.bz2")
+le = load("./demo_outputs/LabelEncoders.bz2")
 df_h = load("./demo_outputs/hashes.df.bz2")
 df_d = load("./demo_outputs/distances.df.bz2")
 
@@ -20,12 +21,11 @@ inter_df = df_d[df_d["class"] == 0]
 # Generate triplet combinations without 'orig'
 triplets = np.array(
     np.meshgrid(
-        le['a'].classes_, 
-        [t for t in le['t'].classes_ if t != "orig"], 
-        le['m'].classes_)
+        le["a"].classes_, [t for t in le["t"].classes_ if t != "orig"], le["m"].classes_
+    )
 ).T.reshape(-1, 3)
 
-for transform in [t for t in le['t'].classes_ if t != "orig"]:
+for transform in [t for t in le["t"].classes_ if t != "orig"]:
     print(f"\nGenerating macro stats for '{transform}'")
     stats = dist_stats(intra_df, le, transform, style=False)
     print(stats.to_latex())
@@ -33,7 +33,7 @@ for transform in [t for t in le['t'].classes_ if t != "orig"]:
 # Select the first triplet to demonstrate plots
 a_s, t_s, m_s = triplets[0]
 # overwrite any of the parameters if required...
-a_s = 'phash'
+a_s = "phash"
 print(f"Analysing '{a_s}_{t_s}_{m_s}'")
 
 # Convert to labels
