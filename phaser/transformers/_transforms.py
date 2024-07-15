@@ -85,7 +85,7 @@ class TransformFromDisk(Transformer):
             self.name = name
         else:
             # Use the folder name if no name is provided.
-            self.name = os.path.split(os.path.dirname(self.dirpath))[-1]
+            self.name = os.path.split(self.dirpath)[-1]
 
     def fit(self, image_obj) -> Image.Image:
         filename = image_obj.filename
