@@ -4,6 +4,7 @@ import pandas as pd
 from ._distances import DISTANCE_METRICS
 from scipy.spatial import distance as dist
 from scipy.spatial.distance import cdist, pdist
+from sklearn.preprocessing import LabelEncoder
 from itertools import combinations
 from tqdm.auto import tqdm
 from typing import Callable
@@ -18,7 +19,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-
 
 def find_inter_samplesize(num_images: int) -> int:
     for n in range(0, num_images):
@@ -138,9 +138,21 @@ class IntraDistance:
         distances = np.concatenate(distances)
 
         # Create the dataframe output
-        cols = ["fileA", "fileB", "algo", "metric", "class", *self.le['t'].classes_[:-1]]
+        
+        # Get the order of transforms from the hash dataframe
+        num_transforms = len(self.le['t'].classes_)
+        transform_order =  list(data['transformation'][:num_transforms])
+        transform_classes = list(self.le['t'].inverse_transform(transform_order))
+        transform_classes.remove("orig")
+        
+        cols = ["fileA", "fileB", "algo", "metric", "class", *transform_classes]
         distances = pd.DataFrame(distances, columns=cols)
-        distances["orig"] = 0
+        
+        # Insert originals in the correct place (according to hash dataframe)
+        # Get index of class column and add 5 (to account for filea, fileb, algo, metric, class) 
+        distances.insert(loc=self.le['t'].transform(["orig"])[0]+5, column='orig', value=0)        
+        
+   
 
         # set int columns accordingly
         int_cols = cols[:5]
@@ -262,6 +274,8 @@ class InterDistance:
         distances = np.concatenate(distances)
 
         # Create the dataframe output
+        
+        # No need to re-order these.
         cols = ["fileA", "fileB", "algo", "metric", "class", *self.le['t'].classes_]
         distances = pd.DataFrame(distances, columns=cols)
 
