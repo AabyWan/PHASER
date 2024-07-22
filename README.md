@@ -7,6 +7,8 @@ McKeown, S., Aaby, P., & Steyven, A. (2024). PHASER: Perceptual hashing algorith
 The library simplifies much of the process of performing Perceptual Hashing (Semantic Approximate Matching in the image domain) experiments and evaluations by wrapping standard Python Data Science libraries. It allows for the easy manipulation of base images to produce variants via transformations (such as crop, rotate, flip), and mechanisms for specifying arbitrary Perceptual Hashes and Distance metrics.
 Wrappers are also provided to make the evaluation and visualisation straightforward, while being extensible.
 
+### Notes and Caveats
+- Note that PHASER uses the Python Image Library (PIL) to load and manipulate images. PIL ignores EXIF rotation metadata, which may cause issues if transforms are imported from disk and their EXIF rotation does not match the original image. PHASER is internally consistent, though, so it is only a problem for imported transforms.
 
 ## Contents
 

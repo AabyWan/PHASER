@@ -78,7 +78,7 @@ class TransformFromDisk(Transformer):
         self.dirpath = dirpath
         if not os.path.isdir(self.dirpath):
             raise Exception(
-                f"Invalid path provided to TransformFromDisk: {self.dirpath}. Expeted a directory."
+                f"Invalid path provided to TransformFromDisk: {self.dirpath}. Expected a directory."
             )
 
         if name:
