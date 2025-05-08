@@ -73,15 +73,10 @@ Any overlap indicates that the distributions cannot be completely separated, whi
 
 In some cases it is clear that a given algorithm cannot function for a given transform, for example, when the two distributions almost overlap completely. In this case, no threshold would be viable.
 
-### Paper Folder
+### Papers Folder
 
-The paper folder has the code for the two short experiments located in the paper as a proof of concept, namely, **dataset size** evaluation and **bit-weight analysis**.
+The papers folder has the code for any papers produced by the authors from the Framework. Currently these are for:
+- McKeown, S. (2025). Beyond Hamming Distance: Exploring spatial encoding in perceptual hashes. Forensic Science International: Digital Investigation, 52, 301878. https://doi.org/10.1016/j.fsidi.2025.301878
+- McKeown, S., Aaby, P., & Steyven, A. (2024). PHASER: Perceptual hashing algorithms evaluation and results-An open source forensic framework. Forensic Science International: Digital Investigation, 48, 301680. https://doi.org/10.1016/j.fsidi.2023.301680
 
-- **sample_experiment.py** assumes that the hashes have already been calculated (using, for example, the provided notebook). The original experiment used the Flickr 1 Million dataset.
-	- The program then sub-samples the hashes a specified number of times, generating an aggregate file to keep track of all evaluation results from MetricMaker on each run.
-	- The values are then plotted and analysed to gauge variance between runs for different sample sizes.
-- **_03-demo-bit-analysis.ipynb** this notebook was used in the original bit-weighting experiment, but doesn't run as-is with the current version of the PHASER library (see the top-level example notebook instead). It does however contain the original results from the experiment.
-	- Essentially, the evaluation is run as normal, but then optimal weights are calculated for the hash-distance metric pairs across all transforms. This is then used to re-evaluate the hash-distance pair, which is compared to the original results via an AUC (area under curve) plot.
-
-In both cases these files should work with any set of hashes, though the sample size will need to be adjusted accordingly
-
+See associated READMEs in the subfolders.
