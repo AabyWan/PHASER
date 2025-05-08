@@ -1,3 +1,4 @@
+import traceback
 import logging, pathlib, os
 import pandas as pd
 import numpy as np
@@ -124,11 +125,16 @@ def sim_hashing(img_path:str, transformations:list=[], algorithms:dict={}) -> np
                 for transform in transformations:
                     try:
                         _img = transform.fit(img)
-
+                    except Exception as err:
+                        logging.error(f"Error applying transform {transform.name} to {img.filename}: {err}.")
+                        error=True
+                        break
+                    try:
                         hashes = [a.fit(_img) for a in algorithms.values()]
                         outputs.append([img.filename, transform.name, *hashes])
                     except Exception as err:
-                        logging.error(f"Error applying transform {transform.name} to {img.filename}: {err}.")
+                        tb = traceback.extract_tb(err.__traceback__)
+                        logging.error(f"Error hashing {transform.name} for {img.filename}: {err}.")
                         error=True
                         break
 

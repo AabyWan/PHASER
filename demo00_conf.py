@@ -12,6 +12,7 @@ np.random.seed(RNG)
 # Get the working directory according to where the .py file is executed
 SCRIPT_DIR = f"{os.sep}".join(os.path.abspath(__file__).split(os.sep)[:-1])
 
+print(SCRIPT_DIR)
 # Make sure SCRIPT_DIR is the current working dir.
 os.chdir(SCRIPT_DIR)
 
@@ -38,10 +39,10 @@ from phaser.transformers import Border, Crop, Flip, Rescale, Rotate, Watermark
 
 TRANS_list = [
     Border(border_colour=(255, 255, 255), border_width=30),
-    Crop(cropbox_factors=[0.05, 0.05, 0.05, 0.05]),
-    Flip(direction="Horizontal"),
-    Rescale(fixed_dimensions=(96, 96), thumbnail_aspect=True),
-    Rotate(degrees_counter_clockwise=5),
+    # Crop(cropbox_factors=[0.05, 0.05, 0.05, 0.05]),
+    # Flip(direction="Horizontal"),
+    # Rescale(fixed_dimensions=(96, 96), thumbnail_aspect=True),
+    # Rotate(degrees_counter_clockwise=5),
     Watermark(),
 ]
 

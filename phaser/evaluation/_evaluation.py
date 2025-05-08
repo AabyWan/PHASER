@@ -354,6 +354,7 @@ class ComputeMetrics:
         n_jobs=1,
         backend="loky",
         progress_bar=True,
+        decision_thresholds={}
     ) -> None:
         """
         Compute performance metrics for triplets using JobLib for parallel processing
@@ -375,7 +376,9 @@ class ComputeMetrics:
             JobLib flag, change backend, by default "loky"
         progress_bar : bool, optional
             Show progress bar using TQDM, by default True
-        """
+        decision_thresholds : dict, optional
+            A nested dictionary, outer keys for algorithm, inner keys for metrics, values are similarity decision thresholds in float between 0 and 1.
+ """
         self.le = le
         self.df_d = df_d
         self.df_h = df_h
@@ -383,6 +386,8 @@ class ComputeMetrics:
         self.n_jobs = n_jobs
         self.backend = backend
         self.progress_bar = progress_bar
+        self.decision_thresholds = decision_thresholds
+        self.y_pred = None
 
     def _process_triplet(self, triplet, normalize, weighted):
         # string values for algo, transf, metric
@@ -406,10 +411,19 @@ class ComputeMetrics:
 
         # use the metric maker to
         mm = MetricMaker(y_true, y_sims, weighted=weighted)
-        cm = mm.get_cm(mm.eer_thresh, normalize, True)
+        if self.decision_thresholds:
+            a_dict = self.decision_thresholds.get(triplet[0]) # Get the algorithm values
+            thresh = a_dict.get(triplet[2]) # get the value for this metric
+        else: # No threshold provided, use EER threshold.
+            thresh = mm.eer_thresh
+        cm = mm.get_cm(thresh, normalize, True)
 
-        m = [a_s, t_s, m_s, mm.auc, mm.eer_score, mm.eer_thresh, *cm]
+        # Create metricmaker columns. Note, threshold is inverted to similarity in analysis, and here.
+        m = [a_s, t_s, m_s, mm.auc, mm.eer_score, mm.eer_thresh, *cm, thresh]
 
+        # set predictions as a property so they can be accessed externally.
+        self.ypred = mm.y_pred
+        
         if self.analyse_bits:
             BA = BitAnalyzer(df_h=self.df_h, le=self.le)
 
@@ -453,11 +467,12 @@ class ComputeMetrics:
             "Metric",
             "AUC",
             "EER",
-            "Threshold",
+            "EER-Threshold",
             "TN",
             "FP",
             "FN",
             "TP",
+            "Decision_Threshold"
         ]
         m = pd.DataFrame(m, columns=cols)
         m[m.columns[3:]] = m[m.columns[3:]].astype(float)

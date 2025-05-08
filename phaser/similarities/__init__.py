@@ -12,7 +12,7 @@ from ._helpers import (
 )
 
 
-from ._distances import DISTANCE_METRICS, test_synthetic
+from ._distances import DISTANCE_METRICS, test_synthetic, convolution_distance, hatched_matrix, hatched_matrix2, ngram_cosine_distance, hatched_matrix_fast
 
 __all__ = [
     "IntraDistance",
@@ -21,4 +21,9 @@ __all__ = [
     "validate_metrics",
     "DISTANCE_METRICS",
     "test_synthetic",
+    "convolution_distance",
+    "hatched_matrix",
+    "hatched_matrix2",
+    "ngram_cosine_distance",
+    "hatched_matrix_fast"
 ]

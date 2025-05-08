@@ -1,13 +1,15 @@
 """
-The :mod:`phaser.transformers` module includes various ...
+The :mod:`phaser.transformers` module includes various classes defining image transformations for testing similarity across hashes and distance metrics.
 """
 
 from ._transforms import (
     Transformer,
-    Crop,
+    Blend,
     Border,
+    Crop,
     Enhance,
     Flip,
+    Composite,
     Rescale,
     Rotate,
     TransformFromDisk,
@@ -16,10 +18,12 @@ from ._transforms import (
 
 __all__ = [
     "Transformer",
-    "Crop",
+    "Blend",
     "Border",
+    "Crop",
     "Enhance",
     "Flip",
+    "Composite",
     "Rescale",
     "Rotate",
     "TransformFromDisk",

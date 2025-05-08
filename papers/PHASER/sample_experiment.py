@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 # local imports
 module_dir = os.path.dirname(os.path.abspath(__file__))
 
-sys.path.append(os.path.abspath(os.path.join(module_dir, "..")))
+sys.path.append(os.path.abspath(os.path.join(module_dir, "../..")))
 from notebooksupport import calculate_distances
 from phaser.utils import bin2bool, load_labelencoders
 from phaser.evaluation import ComputeMetrics, MetricMaker

@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 import imagehash
 import pdqhash
 import numpy as np
-
+import os
+import onnxruntime # neuralhash
 
 
 class PerceptualHash(ABC):
@@ -70,6 +71,64 @@ class DifferenceHash(PerceptualHash):
 
         flat_hash = np.concatenate(ihash).flatten()
         return flat_hash
+
+    
+class NeuralHash(PerceptualHash):
+    """
+    Apple Neuralhash, implementation from https://github.com/AsuharietYgvar/AppleNeuralHash2ONNX.
+    Model and DAT files must be extracted from an appropriate iOS image.
+    """
+    
+    def __init__(self, model_file=r"../resources/model.onnx", 
+                 dat_file=r"../resources/neuralhash_128x96_seed1.dat",
+                 pad=0):
+        
+        # Manage relative paths
+        try:
+            thisdir = os.path.dirname(__file__)
+            if model_file == r"../resources/model.onnx":
+                self.model_file = os.path.join(thisdir, model_file)
+            else:
+                self.model_file = model_file
+            if dat_file == r"../resources/neuralhash_128x96_seed1.dat":
+                self.dat_file = os.path.join(thisdir, dat_file)
+            else:
+                self.dat_file = dat_file
+        except Exception as e:
+            print(e)
+            print("""Problem encoutered loading Neuralhash model and dat files. 
+                  By default these can be placed in the resources folder. 
+                  See https://github.com/AsuharietYgvar/AppleNeuralHash2ONNX for details on how to obtain these.""")
+        
+        # Load ONNX model
+        session = onnxruntime.InferenceSession(self.model_file)
+
+        # Load output hash matrix
+        seed1 = open(self.dat_file, 'rb').read()[128:]
+        seed1 = np.frombuffer(seed1, dtype=np.float32)
+        seed1 = seed1.reshape([96, 128])
+        
+        self.session = session
+        self.seed = seed1
+        self.pad = pad
+
+    def fit(self, img):        
+        img = img.resize([360, 360])
+        arr = np.array(img).astype(np.float32) / 255.0
+        arr = arr * 2.0 - 1.0
+        arr = arr.transpose(2, 0, 1).reshape([1, 3, 360, 360])
+
+        # Run model
+        inputs = {self.session.get_inputs()[0].name: arr}
+        outs = self.session.run(None, inputs)
+        hash_output = self.seed.dot(outs[0].flatten())
+        
+        # Pad the result if required. 
+        if self.pad > 0:
+            hash_output = np.pad(hash_output,self.pad, mode="mean")
+        nhash = np.array([True if it >= 0 else False for it in hash_output])
+        
+        return nhash
 
     
 class PHash(PerceptualHash):

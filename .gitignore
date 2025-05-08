@@ -1,5 +1,16 @@
 # Demo output
 demo_outputs/*
+demo_outputs*
+comp/*
+test/*
+*.bak
+
+# Testing/old code
+phaser/similarities/_distances_test.py
+
+# Resources that shouldn't be shared for copyright reasons
+phaser/resources/model.onnx
+phaser/resources/neuralhash_128x96_seed1.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

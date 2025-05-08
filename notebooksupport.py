@@ -67,18 +67,24 @@ def do_hashing(
     originals_path: str,
     algorithms: dict,
     transformers: list,
-    distance_metrics: dict,
     output_directory: str,
     n_jobs=-1,
     progress_report: bool = True,
-    batch_size=100_000,
+    batch_size:int = 100_000,
+    backend: str = "loky",
+    samples: int = 0
 ) -> None:
 
     # Get list of images
     imgpath = originals_path
     list_of_images = [str(i) for i in pathlib.Path(imgpath).glob("**/*")]
-
     print(f"Found {len(list_of_images)} images in {os.path.abspath(imgpath)}.")
+    
+    # If sampling:
+    if samples > 0:
+        print(f"Sampling a random set of {samples} files.")
+        list_of_images = np.random.choice(list_of_images, samples, replace=False)
+    
     print(f"Creating output directory at {os.path.abspath(output_directory)}...")
     pathlib.Path(output_directory).mkdir(exist_ok=True)
 
@@ -97,7 +103,7 @@ def do_hashing(
         if num_batches > 1:
             print(f"Batch {bat}...")
         ch = phaser.hashing._helpers.ComputeHashes(
-            algorithms, transformers, n_jobs=n_jobs, progress_bar=progress_report
+            algorithms, transformers, n_jobs=n_jobs, progress_bar=progress_report, backend=backend
         )
         df_h = ch.fit(batches[bat])
 
@@ -120,7 +126,7 @@ def do_hashing(
         "f": LabelEncoder().fit(df_h["filename"]),
         "t": LabelEncoder().fit(df_h["transformation"]),
         "a": LabelEncoder().fit(list(algorithms.keys())),
-        "m": LabelEncoder().fit(list(distance_metrics.keys())),
+        #"m": LabelEncoder().fit(list(distance_metrics.keys())),
         "c": LabelEncoder(),
     }
 
@@ -151,7 +157,7 @@ def do_hashing(
 
 
 def calculate_distances(
-    distance_metrics: list,
+    distance_metrics: dict,
     hash_directory: str = "",
     load_df=True,
     hash_dataframe: pd.DataFrame = None,
@@ -217,6 +223,23 @@ def calculate_distances(
     else:
         df_subset = df_h
 
+    # Add distance metrics to label encodings
+    le["m"] = LabelEncoder().fit(list(distance_metrics.keys()))
+    
+    # Dump LabelEncoders and df_h to disk
+    print(
+        "Updating label encoder with distance metrics."
+    )
+    # dump_labelencoders(le, path=output_directory)
+    dump(
+        value=le,
+        filename=os.path.join(hash_directory, "LabelEncoders.bz2"),
+        compress=9,
+    )
+    
+    print(le["m"].classes_)
+
+
     # Compute the intra distances
     intra = IntraDistance(distance_metrics, le, progress_bar=progress_report)
     intra_df = intra.fit(df_subset)
@@ -229,6 +252,7 @@ def calculate_distances(
         distance_metrics, le, n_samples=n_samples, progress_bar=progress_report
     )
     inter_df = inter.fit(df_subset)
+    
 
     if progress_report:
         print(f"Number of pairwise comparisons = {inter.n_pairs_}")

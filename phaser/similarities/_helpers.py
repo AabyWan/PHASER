@@ -2,12 +2,15 @@ import logging, pathlib
 import numpy as np
 import pandas as pd
 from ._distances import DISTANCE_METRICS
+from scipy.ndimage import convolve
 from scipy.spatial import distance as dist
 from scipy.spatial.distance import cdist, pdist
 from sklearn.preprocessing import LabelEncoder
 from itertools import combinations
 from tqdm.auto import tqdm
 from typing import Callable
+
+
 
 
 
@@ -38,6 +41,17 @@ def validate_metrics(metrics: dict) -> bool:
     invalid = []
 
     for mname, value in metrics.items():
+        keyword_args = {}
+        if not isinstance(value, str) and not isinstance(value, Callable):
+            if len(value) not in [1,2]:
+                raise Exception("""Invalid format for distance metric. Should be a callable, or scipy.spatial.distance function name string. 
+                                Pass keywords arguments by using a tuple where the second element is a dict of keyword args""")
+            if len(value) == 2:
+                keyword_args = value[1]
+                if type(keyword_args) != dict:
+                    raise(Exception("Keyword argument list should be a dict."))
+                value = value[0]
+            
         if isinstance(value, str):
             if value not in dist._METRICS_NAMES: #type:ignore
                 invalid.append(
@@ -50,6 +64,19 @@ def validate_metrics(metrics: dict) -> bool:
                 invalid.append(
                     f"{mname} does not appear to be a valid distance function in phaser.similarities"
                 )
+        # Check to see if we can actually call it with these arguments
+        if isinstance(value, str):
+            func = getattr(dist, value)
+            test_result = func(u=np.ones(64,), v=np.ones(64,), **keyword_args)
+            if test_result == 0:
+                test_result = float(0)
+            assert isinstance(test_result, float), f"The function {func.__name__} does not return a float. Got {test_result}."
+
+        else:
+            test_result = value(u=np.ones(64,), v=np.ones(64,), **keyword_args)
+            if test_result == 0:
+                test_result = float(0)
+            assert isinstance(test_result, float), f"The function {value.__name__} does not return a float. Got {test_result}."
 
     # If no invalid items, all entries in the list pass basic check.
     if not invalid:
@@ -89,8 +116,14 @@ class IntraDistance:
         # This is either a string representing a name from scipy.spatial.distances
         # or a callable function implementing another metric.
         metric_value = self.m_dict[metric]
+        keyword_arguments = {}
         
-        return cdist(xa, xb, metric=metric_value, w=weights)
+        if not isinstance(metric_value, Callable):
+            if len(metric_value) == 2:
+                keyword_arguments = metric_value[1] # The keyword dict
+                metric_value = metric_value[0] # The function
+        
+        return cdist(xa, xb, metric=metric_value, w=weights, **keyword_arguments)
 
     def fit(self, data):
         logging.info("===Begin processing Intra-Distance.===")
@@ -117,6 +150,9 @@ class IntraDistance:
                     )
 
                     # Stack each distance into rows
+                    # Note: If this throws:
+                    # "ValueError: all the input array dimensions except for the concatenation axis must match exactly"
+                    # then it's likely that the input list of hashes contains duplicate filenames/rows.
                     grp_dists = np.row_stack(grp_dists)
 
                     # Get the integer labels for algo and metric
@@ -195,9 +231,14 @@ class InterDistance:
         # This is either a string representing a name from scipy.spatial.distances
         # or a callable function implementing another metric.
         metric_value = self.m_dict[metric]
+        keyword_arguments = {}
+        if not isinstance(metric_value, Callable):
+            if len(metric_value) == 2:
+                keyword_arguments = metric_value[1] # The keyword dict
+                metric_value = metric_value[0] # The function
 
         # return pairwise distances of all combinations
-        return pdist(hashes, metric_value, w=weights)
+        return pdist(hashes, metric=metric_value, w=weights, **keyword_arguments)
 
     def fit(self, data):
         logging.info(
@@ -290,3 +331,11 @@ class InterDistance:
         logging.info(f"Generated {len(distances)} Inter-distance observations.")
 
         return distances
+
+
+def max_convolution_value(matrix_dimensions, filter):
+    """ Calculate the maximum value for a convolution using a matrix of 1s of size matrix_dimensions, using a specified filter.
+    """
+    m = np.ones(matrix_dimensions, dtype=int)
+    sum = np.sum(convolve(m, filter, mode='constant', cval=0))
+    return sum

@@ -60,18 +60,29 @@ def create_file_batches(filelist:list[str], batch_size:int=100_000) -> list[list
 
 
 def format_temp_name(batch_num:int) -> str:
-    return f"temp_hashes_{batch_num}.csv.bz2"
+    return f"temp_hashes_{batch_num}.df.bz2"
 
 
-def combine_temp_hash_dataframes(output_directory:str, num_batches:int) -> pd.DataFrame: 
+def combine_temp_hash_dataframes(output_directory:str, num_batches:int, save_to_disk:str="" ) -> pd.DataFrame: 
     return_df = pd.DataFrame()
-
-    # Loop through all temp CSV files and append them to the return DF.
+    # Loop through all temp DF files and append them to the return DF.
     for bat in range(0, num_batches):
-        csv_path = os.path.join(output_directory, format_temp_name(bat))
-        df_h = pd.read_csv(csv_path)
+        tmp_path = os.path.join(output_directory, format_temp_name(bat))
+        df_h = load(tmp_path)
         return_df = pd.concat([return_df, df_h])
-        # delete temp CSV
-        os.remove(csv_path)
-
+        
+    if save_to_disk:
+        dump(value=return_df, filename=save_to_disk, compress=9)
+    
     return return_df
+
+def remove_temp_hash_dataframes(output_directory:str, num_batches:int) -> None:
+    to_remove = []    
+    # Loop through all temp DF files, add to remove list
+    for bat in range(0, num_batches):
+        tmp_path = os.path.join(output_directory, format_temp_name(bat))
+        # add to list of files to remove
+        to_remove.append(tmp_path)
+    # remove files
+    for f in to_remove:
+        os.remove(f)

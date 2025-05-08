@@ -4,6 +4,7 @@ from phaser.hashing import ComputeHashes
 # Find all the images and compute hashes
 list_of_image_paths = [str(i) for i in pathlib.Path(IMGPATH).glob("**/*")]
 
+
 # Ensure files are sorted consistently when subset
 list_of_image_paths = sorted(list_of_image_paths)
 print(f"Found {len(list_of_image_paths)} files/directories in '{SCRIPT_DIR}/Images'")

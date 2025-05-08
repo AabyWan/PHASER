@@ -7,7 +7,7 @@ Add some important text here to describe or link to examples.
 
 """
 
-from ._algorithms import PerceptualHash, PHash, ColourHash, WaveHash, PdqHash, AverageHash, DifferenceHash
+from ._algorithms import PerceptualHash, PHash, ColourHash, WaveHash, PdqHash, AverageHash, DifferenceHash, NeuralHash
 
 from ._helpers import ComputeHashes
 
@@ -21,4 +21,5 @@ __all__ = [
     "ColourHash",
     "WaveHash",
     "PdqHash",
+    "NeuralHash",
 ]

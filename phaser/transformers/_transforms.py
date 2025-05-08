@@ -49,7 +49,12 @@ class Transformer(ABC):
             dirpath = save_directory
         pathlib.Path(dirpath).mkdir(parents=True, exist_ok=True)
         filepath = os.path.abspath(os.path.join(dirpath, filename))
-        image.save(filepath)
+        try:
+            image.save(filepath)
+        except OSError as e:
+            if "RGBA" in str(e):
+                rgb_im = image.convert('RGB')
+                rgb_im.save(filepath)
         return(filepath)
 
 
@@ -94,15 +99,96 @@ class TransformFromDisk(Transformer):
 
         return image_obj.image  # image from disk
 
+class Blend(Transformer):
+    def __init__(
+        self,
+        name: str = "",
+        saveToDir: str = "",
+        saveToSubdir: bool = True,
+        direction = "Left-to-Right",
+        static_image: str = r"../resources/blend_static.jpg",
+    ) -> None:
+        """Blend the source image with a static image, specified by static_image. direction specifies where to begin the fade-in for the static image. Must call the fit function to apply the transform and return a PIL.Image.
 
-# -------
+        Args:
+            name (str, optional): Name for the transform - optional, otherwise derived from the provided arguments. Serves as directory name if saveToSubDir is set to True, otherwise can be used in graphs. Defaults to "".
+            saveToDir (str, optional): Output directory if provided, if not, then the transformed image is not saved. If saveToSubDir is set then this will be the top-level directory. Defaults to ''.
+            saveToSubDir (bool, optional): Requires saveToDir to be set to do anything - creates a subdirectory based on the name of the transform. Defaults to False.
+            direction (str, optional): Set the blend direction for the static image. Blending Left-to-Right means the static blend image fades in from the left (low-opacity), with higher opacity on the right. Possible options: 'left-to-right', 'right-to-left', 'up-to-down', 'down-to-up'
+            static_image(str, optional): Path to the image to create a composite with the target image. Defaults to r"../resources/blend_static.jng".
 
+        Returns:
+            None: call fit to return the modified PIL.Image.
+        """
+
+        super().__init__(name=name, saveToDir=saveToDir, saveToSubDir=saveToSubdir)
+        if not self.name:
+            self.name = f"Blend_{direction}"
+    
+        if static_image == r"../resources/blend_static.jpg":
+            package_dir = os.path.dirname(os.path.abspath(__file__))
+            self.static_image = os.path.join(
+                package_dir, static_image
+            )
+        else:
+            self.static_image = static_image
+        # Check blend direction and set
+        directions = ['left-to-right', 'right-to-left', 'up-to-down', 'down-to-up']
+        if direction.lower() in directions:
+            self.direction = direction
+        else:
+            raise(Exception(f"Invalid direction {direction} specified in Blend transform construction."))
+              
+        # Load the blending image to use
+        self.blend_im = Image.open(self.static_image)
+
+    def fit(self, image_obj) -> Image.Image:
+        image = deepcopy(image_obj.image)
+
+        # resize the static image to match the target
+        resized_blend_im = self.blend_im.resize((image.width, image.height))
+        
+        if image.size != resized_blend_im.size:
+            raise ValueError("HorzintalComposite: Both images must have the same dimensions.")
+        
+        alpha_mask = Image.new('L', (image.width, image.height))
+        
+        if self.direction in ['left-to-right', 'right-to-left']:
+            # Draw the gradiant across the x-axis
+            for x in range(image.width):
+                # Calculate the alpha value based on the position
+                alpha_value = (int((x / image.width) * 255))
+                # Draw a vertical line with the calculated alpha value
+                if self.direction == 'left-to-right':
+                    ImageDraw.Draw(alpha_mask).line([(x, 0), (x, image.height)], fill=alpha_value)
+                else:
+                    ImageDraw.Draw(alpha_mask).line([(x, 0), (x, image.height)], fill=255-alpha_value)
+        else:
+            # Vertical instead
+            # Draw the gradiant across the y-axis
+            for y in range(image.height):
+                # Calculate the alpha value based on the position
+                alpha_value = (int((y / image.height) * 255))
+                # Draw a horizontal line with the calculated alpha value
+                if self.direction == 'up-to-down':
+                    ImageDraw.Draw(alpha_mask).line([(0, y), (image.width, y)], fill=alpha_value)
+                else:
+                    ImageDraw.Draw(alpha_mask).line([(image.width, y), (0, y)], fill=255-alpha_value)
+
+        image = Image.composite(image, resized_blend_im, alpha_mask)
+    
+
+        if self.saveToDir:
+            self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
+
+        return image
 
 class Border(Transformer):
     def __init__(
         self,
         border_colour: Tuple[int, int, int] = (255, 255, 255),
         border_width: int = 10,
+        border_width_fraction: float = 0.0,
         saveToDir: str = "",
         name: str = "",
         saveToSubdir: bool = True,
@@ -112,6 +198,7 @@ class Border(Transformer):
         Args:
             border_colour (Tuple[int, int, int], optional):  An integer triple of RGB values for the colour of the border.. Defaults to (255,255,255).
             border_width (int, optional): The border width (in pixels) to add to the image. Defaults to 10.
+            border_width_fraction (float, optional): The border width as a fraction of the image width (as a percentage) to add to the image. Defaults to 0%. Overrides border_width.
             name (str, optional): Name for the transform - optional, otherwise derived from the provided arguments. Serves as directory name if saveToSubDir is set to True, otherwise can be used in graphs. Defaults to "".
             saveToDir (str, optional): Output directory if provided, if not, then the transformed image is not saved. If saveToSubDir is set then this will be the top-level directory. Defaults to ''.
             saveToSubDir (bool, optional): Requires saveToDir to be set to do anything - creates a subdirectory based on the name of the transform. Defaults to False.
@@ -126,10 +213,15 @@ class Border(Transformer):
             )
         self.bc = border_colour
         self.bw = border_width
+        self.bwf = border_width_fraction
 
     def fit(self, image_obj) -> Image.Image:
         image = deepcopy(image_obj.image)
-
+        
+        # Set border width if fraction is specified
+        if int(self.bwf) != 0:
+            self.bw = int(image.width * (self.bwf / 100))
+            
         # Draw the rectangle border on the image
         canvas = ImageDraw.Draw(image)
         canvas.rectangle(
@@ -137,6 +229,121 @@ class Border(Transformer):
             outline=self.bc,
             width=self.bw,
         )
+
+        if self.saveToDir:
+            self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
+
+        return image
+
+class Composite(Transformer):
+    def __init__(
+        self,
+        name: str = "",
+        saveToDir: str = "",
+        saveToSubdir: bool = True,
+        position = "left",
+        coords: Tuple[int] = (), # pixel location to paste
+        scale: bool = False,
+        scale_size: Tuple[int] = (), # resize tuple for static image
+        static_image: str = r"../resources/blend_static.jpg"
+    ) -> None:
+        """Insert the static image, specified by static_image, to create a composite image. The position of the static image is defined by the position argument. Must call the fit function to apply the transform and return a PIL.Image.
+
+        Args:
+            name (str, optional): Name for the transform - optional, otherwise derived from the provided arguments. Serves as directory name if saveToSubDir is set to True, otherwise can be used in graphs. Defaults to "".
+            saveToDir (str, optional): Output directory if provided, if not, then the transformed image is not saved. If saveToSubDir is set then this will be the top-level directory. 
+            saveToSubDir (bool, optional): Requires saveToDir to be set to do anything - creates a subdirectory based on the name of the transform. Defaults to False.
+            position (str, optional): Set the position of the static image when embedding. Possible options: 'left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'.Defaults to bottom-left. Defaults to 'left'.
+            coords (Tuple[int], optional): Manually specify where to paste the image, otherwise this is calculated automatically by the position.
+            scale (bool, optional): Select whether to scale the static image or not. The image is scaled to 1/2 (left/right) or 1/4 (quadrants) if True, otherwise it is only scaled to the size of the original and will 'show through' as if a piece of the original was cut out.
+            scale_size (Tuple[int], optional): Manually specify scaling for the static image.
+            static_image(str, optional): Path to the image to create a composite with the target image. Defaults to r"../resources/blend_static.jng".
+
+        Returns:
+            None: call fit to return the modified PIL.Image.
+        """
+
+        super().__init__(name=name, saveToDir=saveToDir, saveToSubDir=saveToSubdir)
+        if not self.name:
+            if coords != ():
+                self.name = f"Composite_static_c{coords}"
+            else:
+                self.name = f"Composite_static_p{position}"
+    
+            # Manage relative paths
+        try:
+            thisdir = os.path.dirname(__file__)
+            if static_image == r"../resources/blend_static.jpg":
+                self.static_image = os.path.join(thisdir, static_image)
+            else:
+                self.static_image = static_image
+        except Exception as e:
+            print(e)
+            print(f"""Problem encoutered loading image to embed for Composite Transform. 
+                  Check path: {static_image}""")
+        
+    
+        # if static_image == r"../resources/blend_static.jpg":
+        #     package_dir = os.path.dirname(os.path.abspath(__file__))
+        #     self.static_image = os.path.join(
+        #         package_dir, static_image
+        #     )
+        # else:
+        #     self.static_image = static_image
+            
+        if coords != ():
+            # Check position and set
+            positions = ['left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right']
+            if not position.lower() in positions:
+                raise(Exception(f"Invalid position {position} specified in Composite transform construction."))
+        self.position = position.lower()
+        self.scale = scale
+        self.scale_size = scale_size
+        self.coords = coords
+        
+        # Load the blending image to use
+        self.static_im = Image.open(self.static_image)
+    
+    def set_insert_coords(self, position: str, image_width: int, image_height: int) -> None:
+        formula_dict = {
+            'left': (0, 0),
+            'right': (int(image_width / 2),  0), 
+            'top': (0, 0),  
+            'bottom': (0, int(image_height / 2)), 
+            'top-left': (0, 0), 
+            'top-right': (int(image_width / 2),  0), 
+            'bottom-left': (0, int(image_height / 2)), 
+            'bottom-right': (int(image_width / 2), int(image_height / 2))
+        }
+        self.coords = formula_dict[position]
+
+    def fit(self, image_obj) -> Image.Image:
+        image = deepcopy(image_obj.image)
+
+        
+        # Perform image scaling
+        
+        if self.scale_size:
+            # Specify a scaling for the static image
+            resized_static_im = self.static_im.resize(self.scale_size)
+        else:
+            if self.scale == True:
+                # Dynamic scaling based on position
+                if self.position in ['left', 'right']:
+                    resized_static_im = self.static_im.resize((int(image.width / 2), image.height))
+                elif self.position in ['top', 'bottom']:
+                    resized_static_im = self.static_im.resize((image.width, int(image.height / 2)))
+                elif self.position in ['top-left', 'top-right', 'bottom-left', 'bottom-right']:
+                    resized_static_im = self.static_im.resize((int(image.width / 2), int(image.height / 2)))
+            else:
+                # resize the static image to match the target
+                resized_static_im = self.static_im.resize((image.width, image.height))
+
+        # Paste the static image
+        if not self.coords:
+            self.set_insert_coords(self.position, image.width, image.height)
+        image.paste(resized_static_im, self.coords)
+        
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
@@ -182,8 +389,11 @@ class Crop(Transformer):
             )
         elif cropbox_factors:
             self.cropbox_factors = cropbox_factors
+            for f in self.cropbox_factors:
+                if not(f >= 0.0 and f <=1.0):
+                    raise Exception(f"Incorrect crop-factors provided. Should be a list of floats between 0.0 and 1.0. Got {self.cropbox_factors}")
             if not self.name:
-                self.name = f"Crop_{str(cropbox_factors)}"
+                self.name = f"Crop_factors{str(cropbox_factors)}"
             self.cropbox_absolute = None
         elif cropbox_absolute:
             self.cropbox_absolute = cropbox_absolute
@@ -209,6 +419,7 @@ class Crop(Transformer):
                 int(image.height - self.cropbox_absolute[3]),
             )
         image = image.crop(cropbox)
+
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
@@ -245,7 +456,7 @@ class Enhance(Transformer):
         """
         super().__init__(name=name, saveToDir=saveToDir, saveToSubDir=saveToSubdir)
         if not self.name:
-            self.name = f"Ehance_colour{colourfactor}bright{brightnessfactor}contrast{contrastfactor}sharp{sharpnessfactor}"
+            self.name = f"Enhance_colour{colourfactor}bright{brightnessfactor}contrast{contrastfactor}sharp{sharpnessfactor}"
         self.colourfactor = colourfactor
         self.brightnessfactor = brightnessfactor
         self.contrastfactor = contrastfactor
@@ -266,6 +477,8 @@ class Enhance(Transformer):
         if self.sharpnessfactor != 1.0:
             current_sharpness = ImageEnhance.Sharpness(image)
             image = current_sharpness.enhance(self.sharpnessfactor)
+       
+       
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
@@ -306,6 +519,7 @@ class Flip(Transformer):
 
         if self.direction == "vertical":
             image = image.transpose(Image.FLIP_TOP_BOTTOM)
+
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
@@ -374,6 +588,7 @@ class Rescale(Transformer):
             # Resize, returns modified data.
             image = image.resize(self.dimensions)
 
+
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
 
@@ -407,6 +622,7 @@ class Rotate(Transformer):
     def fit(self, image_obj) -> Image.Image:
         image = deepcopy(image_obj.image)
         image = image.rotate(self.degrees)
+
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)
@@ -479,6 +695,7 @@ class Watermark(Transformer):
             (image.width - targetwidth, image.height - targetheight),
             self.watermark_im,
         )
+
 
         if self.saveToDir:
             self.saveToDisk(image=image, save_directory=self.saveToDir, filename=image_obj.filename)

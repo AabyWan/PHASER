@@ -10,7 +10,8 @@ from ._utils import (
     load_labelencoders,
     create_file_batches,
     format_temp_name,
-    combine_temp_hash_dataframes
+    combine_temp_hash_dataframes,
+    remove_temp_hash_dataframes
 )
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "load_labelencoders",
     "create_file_batches",
     "format_temp_name",
-    "combine_temp_hash_dataframes"
+    "combine_temp_hash_dataframes",
+    "remove_temp_hash_dataframes"
 ]
